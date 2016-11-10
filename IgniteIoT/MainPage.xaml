@@ -24,9 +24,11 @@
                 </StackPanel>
             </StackPanel>
 
-            <CaptureElement Name="CamPreview" Grid.Row="1" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="1353,10,0,642"  />
-            <Canvas Name="VisualizationCanvas" Grid.Row="1" Margin="1353,10,0,642" />
-            <Image x:Name="imagePreview" Grid.Row="1" HorizontalAlignment="Right" Height="898" VerticalAlignment="Top" Width="1353" Margin="0,10,543,0"/>
+          
+            <CaptureElement Name="CamPreview" Grid.Row="1"  HorizontalAlignment="Left" Height="480" Width="640" VerticalAlignment="Top" />
+            <Canvas Name="VisualizationCanvas" Grid.Row="1" Height="480" Width="640" HorizontalAlignment="Left" VerticalAlignment="Top"/>
+            <Image x:Name="imagePreview" Grid.Row="1" HorizontalAlignment="Right" Height="300" VerticalAlignment="Top" Width="300"/>
+            <TextBlock x:Name="textBlock" Width="526" Grid.Row="1" HorizontalAlignment="Right" Height="Auto" TextWrapping="Wrap" FontSize="36" TextAlignment="Center" VerticalAlignment="Bottom"/>
 
             <StackPanel x:Name="StatusPanel" Orientation="Vertical" Grid.Row="2">
                 <TextBlock x:Name="StatusLabel" Margin="10,0,0,10" TextWrapping="Wrap" />
@@ -39,8 +41,7 @@
 
 
         </Grid>
-
-
+        
 
     </Grid>
 </Page>

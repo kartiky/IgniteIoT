@@ -1,5 +1,10 @@
-﻿using System;
+﻿using Microsoft.ProjectOxford.Vision.Contract;
+using Microsoft.ProjectOxford.Vision;
+using System;
 using System.Collections.Generic;
+using System.Diagnostics;
+using System.IO;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -9,6 +14,7 @@ using Windows.Media.Capture;
 using Windows.Media.FaceAnalysis;
 using Windows.Media.MediaProperties;
 using Windows.Storage;
+using Windows.Storage.Streams;
 using Windows.System.Threading;
 using Windows.UI.Core;
 using Windows.UI.Xaml;
@@ -17,6 +23,8 @@ using Windows.UI.Xaml.Media;
 using Windows.UI.Xaml.Media.Imaging;
 using Windows.UI.Xaml.Navigation;
 using Windows.UI.Xaml.Shapes;
+using Windows.Web.Http;
+using Windows.UI;
 
 // The Blank Page item template is documented at http://go.microsoft.com/fwlink/?LinkId=402352&clcid=0x409
 
@@ -251,7 +259,7 @@ namespace IgniteIoT
                 const BitmapPixelFormat InputPixelFormat = BitmapPixelFormat.Nv12;
                 using (VideoFrame previewFrame = new VideoFrame(InputPixelFormat, (int)this.videoProperties.Width, (int)this.videoProperties.Height))
                 {
-                    await this.mediaCapture.GetPreviewFrameAsync(previewFrame);
+                    await mediaCapture.GetPreviewFrameAsync(previewFrame);
 
                     // The returned VideoFrame should be in the supported NV12 format but we need to verify this.
                     if (FaceDetector.IsBitmapPixelFormatSupported(previewFrame.SoftwareBitmap.BitmapPixelFormat))
@@ -299,12 +307,15 @@ namespace IgniteIoT
 
         }
 
+        private Stream stream = new MemoryStream();
+        private CancellationTokenSource cts = new CancellationTokenSource();
+
         /// <summary>
         /// Takes the webcam image and FaceTracker results and assembles the visualization onto the Canvas.
         /// </summary>
         /// <param name="framePizelSize">Width and height (in pixels) of the video capture frame</param>
         /// <param name="foundFaces">List of detected faces; output from FaceTracker</param>
-        private void SetupVisualization(Windows.Foundation.Size framePizelSize, IList<DetectedFace> foundFaces)
+        private async void SetupVisualization(Windows.Foundation.Size framePizelSize, IList<DetectedFace> foundFaces)
         {
             this.VisualizationCanvas.Children.Clear();
 
@@ -320,7 +331,7 @@ namespace IgniteIoT
                 {
                     // Create a rectangle element for displaying the face box but since we're using a Canvas
                     // we must scale the rectangles according to the frames's actual size.
-                    Rectangle box = new Rectangle();
+                    Windows.UI.Xaml.Shapes.Rectangle box = new Windows.UI.Xaml.Shapes.Rectangle();
                     box.Width = (uint)(face.FaceBox.Width / widthScale);
                     box.Height = (uint)(face.FaceBox.Height / heightScale);
                     box.Fill = this.fillBrush;
@@ -335,7 +346,12 @@ namespace IgniteIoT
 
                     imagePreview.Source = bmpImage;
 
-                    GetPersonInfo();
+                    var imageAnalysisResult = await UploadAndAnalyzeImage(file.Path);
+
+                    Debug.WriteLine("Recognizing...");
+
+                    textBlock.Text = imageAnalysisResult.Description.Captions[0].Text + "\n" + Colors.Pink;
+
 
                 }
 
@@ -346,10 +362,139 @@ namespace IgniteIoT
         /// <summary>
         /// Get information from cognitive services
         /// </summary>
-        private void GetPersonInfo()
+        /// 
+
+        //private Stream stream = new MemoryStream();
+
+        private async Task<AnalysisResult> UploadAndAnalyzeImage(string imageFilePath)
+
         {
-            // Get info on age etc from Cognitive services
+
+            //
+
+            // Create Project Oxford Vision API Service client
+
+            //
+
+
+            VisionServiceClient VisionServiceClient = new VisionServiceClient("5cd43034665d42bb912d04a946ac6512");
+
+            Debug.WriteLine("VisionServiceClient is created");
+            
+
+            StorageFile file = await StorageFile.GetFileFromPathAsync(imageFilePath);
+            
+            using (Stream imageFileStream = (await file.OpenReadAsync()).AsStreamForRead())
+
+            {
+
+                // Analyze the image for all visual features
+
+                Debug.WriteLine("Calling VisionServiceClient.AnalyzeImageAsync()...");
+
+                VisualFeature[] visualFeatures = new VisualFeature[]
+
+                {
+
+                        VisualFeature.Adult, VisualFeature.Categories, VisualFeature.Color, VisualFeature.Description,
+
+                        VisualFeature.Faces, VisualFeature.ImageType, VisualFeature.Tags
+
+                };
+
+                try
+                {
+
+                    AnalysisResult analysisResult =
+
+                        await VisionServiceClient.AnalyzeImageAsync(imageFileStream, visualFeatures);
+
+                    Debug.WriteLine(analysisResult);
+                    return analysisResult;
+
+
+                }
+                catch(Exception ex)
+                {
+                    Debug.WriteLine(ex.Message);
+                    return null;
+                }
+
+                
+
+            }
+
         }
+
+        //private async Task<FaceRectangle[]> UploadImage(StorageFile file)
+        //{
+
+        //    try
+        //    {
+        //        using (Stream imageFileStream = File.OpenRead(file.Path))
+        //        {
+        //            var faces = await faceServiceClient.DetectAsync(imageFileStream);
+        //            var faceRects = faces.Select(face => face.FaceRectangle);
+        //            return faceRects.ToArray();
+        //       }
+        //    }
+        //    catch (Exception)
+        //    {
+        //        return new FaceRectangle[0];
+        //    }
+
+
+        //    //Uri uri = new Uri("https://facedetectvo.azurewebsites.net/api/HttpTriggerCSharp1?code=kq8jfg8kd0fchat299ka5pkeosvdekfjjop1");
+
+        //    //using (IRandomAccessStream fileStream = await file.OpenAsync(FileAccessMode.Read))
+        //    //{
+        //    //    fileStream.AsStream().CopyTo(stream);
+        //    //}
+
+        //    //using (var fileStream = await file.OpenStreamForReadAsync())
+        //    //{
+        //    //    fileStream.AsRandomAccessStream().AsStream().CopyTo(stream);
+        //    //}
+        //    //HttpClient client = new HttpClient();
+        //    //HttpStreamContent streamContent = new HttpStreamContent(stream.AsInputStream());
+        //    //HttpRequestMessage request = new HttpRequestMessage(HttpMethod.Post, uri);
+        //    //request.Content = streamContent;
+        //    //try
+        //    //{
+        //    //    HttpResponseMessage response = await client.SendRequestAsync(request).AsTask(cts.Token) ;
+        //    //}catch(Exception e)
+        //    //{
+        //    //    Debug.WriteLine(e.Message);
+        //    //}
+
+        //    //convert filestream to byte array
+        //    //byte[] fileBytes;
+        //    //using (var fileStream = await file.OpenStreamForReadAsync())
+        //    //{
+        //    //    var binaryReader = new BinaryReader(fileStream);
+        //    //    fileBytes = binaryReader.ReadBytes((int)fileStream.Length);
+        //    //}
+
+        //    ////instantiate the client
+        //    //using (var client = new HttpClient())
+        //    //{
+
+        //    //    //api endpoint
+        //    //    var apiUri = uri;
+
+        //    //    //load the image byte[] into a System.Net.Http.ByteArrayContent
+        //    //    var imageBinaryContent = new ByteArrayContent(fileBytes);
+
+        //    //    //create a System.Net.Http.MultiPartFormDataContent
+        //    //    var multipartContent = new MultipartFormDataContent();
+        //    //    multipartContent.Add(imageBinaryContent, "image");
+
+        //    //    //make the POST request using the URI enpoint and the MultiPartFormDataContent
+        //    //    var result = await client.PostAsync(apiUri, multipartContent);
+
+        //        //return result.RequestMessage.ToString();
+        //    //}
+        //}
 
         /// <summary>
         /// Manages the scenario's internal state. Invokes the internal methods and updates the UI according to the
